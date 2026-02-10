@@ -25,7 +25,7 @@ PYTHON      := $(shell command -v python3 2>/dev/null || command -v python 2>/de
 PIP         := $(shell command -v pip3 2>/dev/null || command -v pip 2>/dev/null)
 KEYMAP_DRAW := $(shell command -v keymap 2>/dev/null)
 
-.PHONY: all install svg viewer open clean check-deps help
+.PHONY: all install svg viewer open clean check-deps help pip
 
 all: install svg open
 
@@ -75,6 +75,9 @@ viewer: $(HTML_FILE)
 open: svg viewer
 	@echo "==> Opening SVG..."
 	open -a "$(BROWSER)" $(SVG_FILE) 2>/dev/null || open $(SVG_FILE) 2>/dev/null || xdg-open $(SVG_FILE)
+
+pip:
+	@$(MAKE) -C pip-keymap run
 
 clean:
 	@echo "==> Cleaning generated files..."

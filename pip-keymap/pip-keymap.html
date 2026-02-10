@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PiP Keymap</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: rgba(26,26,46,0.95);
+    color: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+
+  /* Layer tab strip */
+  .tab-strip {
+    display: flex;
+    gap: 2px;
+    padding: 6px 8px;
+    background: rgba(22,33,62,0.9);
+    border-bottom: 1px solid rgba(15,52,96,0.6);
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(30,45,77,0.6);
+    color: #8892b0;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.12s;
+    flex-shrink: 0;
+  }
+  .tab-btn:hover { background: #1a2744; color: #ccd6f6; }
+  .tab-btn.active { color: white; font-weight: 800; }
+  .layer-label {
+    flex: 1;
+    text-align: right;
+    font-size: 11px;
+    font-weight: 600;
+    color: #536390;
+    line-height: 26px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 4px;
+  }
+
+  /* Keyboard area - no flexbox centering, we position manually */
+  .keyboard-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  .keyboard-scaler {
+    position: absolute;
+    transform-origin: 0 0;
+  }
+  .keyboard-container {
+    position: relative;
+    width: 980px;
+    height: 360px;
+  }
+
+  /* Keys */
+  .key {
+    position: absolute;
+    border-radius: 7px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    transition: border-color 0.12s;
+    border: 1px solid #2a3a5c;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .key:hover { border-color: #e94560; }
+  .key .tap {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0e0e0;
+    text-align: center;
+    line-height: 1.15;
+  }
+  .key .hold {
+    font-size: 8px;
+    color: #e94560;
+    margin-top: 2px;
+    text-align: center;
+    line-height: 1.15;
+    font-weight: 500;
+  }
+
+  /* Key type colors */
+  .key-default { background: #1e2d4d; }
+  .key-mod { background: #1a3a2a; border-color: #2a5a3a; }
+  .key-layer { background: #3a1a3a; border-color: #5a2a5a; }
+  .key-held { background: #4a1a1a; border-color: #e94560; box-shadow: 0 0 10px rgba(233,69,96,0.3); }
+  .key-empty { background: #151d30; border-color: #3a4060; opacity: 0.5; }
+  .key-media { background: #1a2a4a; border-color: #2a4a6a; }
+  .key-nav { background: #2a2a1a; border-color: #4a4a2a; }
+  .key-symbol { background: #2a1a2a; border-color: #4a2a4a; }
+  .key-number { background: #1a2a2a; border-color: #2a4a4a; }
+  .key-fn { background: #2a2a2a; border-color: #4a4a4a; }
+  .key-bt { background: #0a2a4a; border-color: #0a4a7a; }
+  .key-rgb { background: #2a1a3a; border-color: #4a2a6a; }
+  .key-mouse { background: #3a2a1a; border-color: #5a4a2a; }
+
+  /* Combos */
+  .combo {
+    position: absolute;
+    background: #0f3460;
+    border: 1px solid #e94560;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #e94560;
+    z-index: 10;
+    box-shadow: 0 0 6px rgba(233,69,96,0.2);
+  }
+
+  /* Tooltip */
+  .key-tooltip {
+    display: none;
+    position: fixed;
+    background: #0a0f1e;
+    border: 1px solid #e94560;
+    border-radius: 8px;
+    padding: 10px 14px;
+    z-index: 100;
+    min-width: 160px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    pointer-events: none;
+  }
+  .key-tooltip.visible { display: block; }
+  .key-tooltip .tt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 11px;
+  }
+  .key-tooltip .tt-row:last-child { margin-bottom: 0; }
+  .key-tooltip .tt-label { color: #536390; }
+  .key-tooltip .tt-value { color: #ccd6f6; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="tab-strip" id="tabStrip"></div>
+
+<div class="keyboard-area" id="kbArea">
+  <div class="keyboard-scaler" id="kbScaler">
+    <div class="keyboard-container" id="keyboard"></div>
+  </div>
+</div>
+
+<div class="key-tooltip" id="tooltip"></div>
+
+<script>
+const KW = 54, KH = 54;
+const X_OFFSET = 10, Y_OFFSET = 50;
+
+const colOffsetsL = [0, 0, -14, -21, -14, -7];
+const colOffsetsR = [-7, -14, -21, -14, 0, 0];
+const positions = [];
+
+for (let row = 0; row < 3; row++) {
+  for (let col = 0; col < 6; col++) {
+    positions.push({ x: X_OFFSET + col * 64, y: Y_OFFSET + row * 64 + colOffsetsL[col], w: KW, h: KH, rot: 0 });
+  }
+  for (let col = 0; col < 6; col++) {
+    positions.push({ x: X_OFFSET + 570 + col * 64, y: Y_OFFSET + row * 64 + colOffsetsR[col], w: KW, h: KH, rot: 0 });
+  }
+}
+positions.push({ x: X_OFFSET + 220, y: Y_OFFSET + 205, w: KW, h: KH, rot: 0 });
+positions.push({ x: X_OFFSET + 282, y: Y_OFFSET + 216, w: KW, h: KH, rot: 13 });
+positions.push({ x: X_OFFSET + 348, y: Y_OFFSET + 228, w: KW, h: 72, rot: 26 });
+positions.push({ x: X_OFFSET + 520, y: Y_OFFSET + 228, w: KW, h: 72, rot: -26 });
+positions.push({ x: X_OFFSET + 586, y: Y_OFFSET + 216, w: KW, h: KH, rot: -13 });
+positions.push({ x: X_OFFSET + 648, y: Y_OFFSET + 205, w: KW, h: KH, rot: 0 });
+
+const layers = {
+  base: {
+    icon: "B", color: "#e94560",
+    keys: [
+      {t:"TAB"},{t:"Q"},{t:"W"},{t:"E"},{t:"R"},{t:"T"},
+      {t:"Y"},{t:"U"},{t:"I"},{t:"O"},{t:"P"},{t:"BSPC"},
+      {t:"LCTRL"},{t:"A",h:"CMD"},{t:"S",h:"OPT"},{t:"D",h:"CTRL"},{t:"F",h:"SHIFT"},{t:"G"},
+      {t:"H"},{t:"J",h:"SHIFT"},{t:"K",h:"CTRL"},{t:"L",h:"OPT"},{t:";",h:"CMD"},{t:"'"},
+      {t:"LSHFT"},{t:"Z"},{t:"X"},{t:"C"},{t:"V"},{t:"B"},
+      {t:"N"},{t:"M"},{t:","},{t:"."},{t:"/"},{t:"ESC"},
+      {t:"ESC",h:"media",type:"layer"},{t:"SPACE",h:"nav",type:"layer"},{t:"TAB",h:"mouse",type:"layer"},
+      {t:"ENTER",h:"sym",type:"layer"},{t:"BSPC",h:"num",type:"layer"},{t:"DEL",h:"fun",type:"layer"}
+    ]
+  },
+  media: {
+    icon: "M", color: "#f6a623",
+    keys: [
+      {},{t:"BT CLR\nALL",type:"bt"},{},{},{},{},
+      {t:"RGB\nTOG",type:"rgb"},{t:"RGB\nEFF",type:"rgb"},{t:"RGB\nHUE+",type:"rgb"},{t:"RGB\nSAT+",type:"rgb"},{t:"RGB\nCOLOR",type:"rgb"},{},
+      {},{t:"LGUI",type:"mod"},{t:"LALT",type:"mod"},{t:"LCTRL",type:"mod"},{t:"LSHIFT",type:"mod"},{},
+      {t:"EP TOG",type:"media"},{t:"PREV",type:"media"},{t:"VOL-",type:"media"},{t:"VOL+",type:"media"},{t:"NEXT",type:"media"},{},
+      {},{},{},{},{},{},
+      {t:"OUT\nTOG"},{t:"BT 0",type:"bt"},{t:"BT 1",type:"bt"},{t:"BT 2",type:"bt"},{t:"BT 3",type:"bt"},{t:"BT CLR\nALL",type:"bt"},
+      {type:"held"},{},{},
+      {t:"STOP",type:"media"},{t:"PLAY\nPAUSE",type:"media"},{t:"MUTE",type:"media"}
+    ]
+  },
+  sym: {
+    icon: "S", color: "#a855f7",
+    keys: [
+      {},{t:"{",type:"sym"},{t:"&",type:"sym"},{t:"*",type:"sym"},{t:"(",type:"sym"},{t:"}",type:"sym"},
+      {},{},{},{},{},{},
+      {},{t:":",type:"sym"},{t:"$",type:"sym"},{t:"%",type:"sym"},{t:"^",type:"sym"},{t:"+",type:"sym"},
+      {},{t:"RSHFT",type:"mod"},{t:"RCTRL",type:"mod"},{t:"RALT",type:"mod"},{t:"RGUI",type:"mod"},{},
+      {},{t:"~",type:"sym"},{t:"!",type:"sym"},{t:"@",type:"sym"},{t:"#",type:"sym"},{t:"|",type:"sym"},
+      {},{},{},{},{},{},
+      {t:"(",type:"sym"},{t:")",type:"sym"},{t:"_",type:"sym"},
+      {type:"held"},{},{}
+    ]
+  },
+  num: {
+    icon: "N", color: "#06b6d4",
+    keys: [
+      {},{t:"[",type:"num"},{t:"7",type:"num"},{t:"8",type:"num"},{t:"9",type:"num"},{t:"]",type:"num"},
+      {},{},{},{},{},{},
+      {},{t:";",type:"num"},{t:"4",type:"num"},{t:"5",type:"num"},{t:"6",type:"num"},{t:"=",type:"num"},
+      {},{t:"RSHFT",type:"mod"},{t:"RCTRL",type:"mod"},{t:"RALT",type:"mod"},{t:"RGUI",type:"mod"},{},
+      {},{t:"`",type:"num"},{t:"1",type:"num"},{t:"2",type:"num"},{t:"3",type:"num"},{t:"\\",type:"num"},
+      {},{},{},{},{},{},
+      {t:".",type:"num"},{t:"0",type:"num"},{t:"-",type:"num"},
+      {},{type:"held"},{}
+    ]
+  },
+  nav: {
+    icon: "V", color: "#eab308",
+    keys: [
+      {},{},{},{},{},{},
+      {t:"REDO",type:"nav"},{t:"PASTE",type:"nav"},{t:"COPY",type:"nav"},{t:"CUT",type:"nav"},{t:"UNDO",type:"nav"},{},
+      {},{t:"LGUI",type:"mod"},{t:"LALT",type:"mod"},{t:"LCTRL",type:"mod"},{t:"LSHIFT",type:"mod"},{},
+      {t:"CAPS",type:"nav"},{t:"\u2190",type:"nav"},{t:"\u2193",type:"nav"},{t:"\u2191",type:"nav"},{t:"\u2192",type:"nav"},{},
+      {},{},{},{},{},{},
+      {t:"INS",type:"nav"},{t:"HOME",type:"nav"},{t:"PGDN",type:"nav"},{t:"PGUP",type:"nav"},{t:"END",type:"nav"},{},
+      {},{type:"held"},{},
+      {t:"ENTER"},{t:"BSPC"},{t:"DEL"}
+    ]
+  },
+  fun: {
+    icon: "F", color: "#22c55e",
+    keys: [
+      {},{t:"F12",type:"fn"},{t:"F7",type:"fn"},{t:"F8",type:"fn"},{t:"F9",type:"fn"},{},
+      {},{},{},{},{},{},
+      {},{t:"F11",type:"fn"},{t:"F4",type:"fn"},{t:"F5",type:"fn"},{t:"F6",type:"fn"},{},
+      {},{t:"RSHFT",type:"mod"},{t:"RCTRL",type:"mod"},{t:"RALT",type:"mod"},{t:"RGUI",type:"mod"},{},
+      {},{t:"F10",type:"fn"},{t:"F1",type:"fn"},{t:"F2",type:"fn"},{t:"F3",type:"fn"},{},
+      {},{},{},{},{},{},
+      {},{t:"SPACE"},{t:"TAB"},
+      {},{},{type:"held"}
+    ]
+  },
+  mouse: {
+    icon: "P", color: "#f97316",
+    keys: [
+      {},{},{},{},{},{},
+      {t:"REDO",type:"nav"},{t:"PASTE",type:"nav"},{t:"COPY",type:"nav"},{t:"CUT",type:"nav"},{t:"UNDO",type:"nav"},{},
+      {},{t:"LGUI",type:"mod"},{t:"LALT",type:"mod"},{t:"LCTRL",type:"mod"},{t:"LSHIFT",type:"mod"},{},
+      {t:"\u2190",type:"mouse"},{t:"\u2193",type:"mouse"},{t:"\u2191",type:"mouse"},{t:"\u2192",type:"mouse"},{},{},
+      {},{},{},{},{},{},
+      {},{},{},{},{},{},
+      {},{},{type:"held"},
+      {t:"RCLK",type:"mouse"},{t:"LCLK",type:"mouse"},{t:"MCLK",type:"mouse"}
+    ]
+  }
+};
+
+const combosDef = [
+  { keys: [3,4], label: "[" },
+  { keys: [7,8], label: "]" },
+  { keys: [15,16], label: "(" },
+  { keys: [19,20], label: ")" },
+  { keys: [27,28], label: "{" },
+  { keys: [31,32], label: "}" },
+  { keys: [5,6], label: "\\", wide: true },
+  { keys: [17,18], label: "|", wide: true },
+];
+
+const layerDescriptions = {
+  base: "QWERTY + home row mods",
+  media: "Media, RGB, Bluetooth",
+  sym: "Symbols",
+  num: "Number pad",
+  nav: "Navigation, arrows",
+  fun: "Function keys",
+  mouse: "Mouse"
+};
+
+let currentLayer = 'base';
+const layerNames = Object.keys(layers);
+
+function getKeyClass(key) {
+  if (!key || (!key.t && !key.type)) return 'key-empty';
+  if (key.type === 'held') return 'key-held';
+  if (key.type === 'layer') return 'key-layer';
+  if (key.type === 'mod') return 'key-mod';
+  if (key.type === 'bt') return 'key-bt';
+  if (key.type === 'rgb') return 'key-rgb';
+  if (key.type === 'media') return 'key-media';
+  if (key.type === 'nav') return 'key-nav';
+  if (key.type === 'sym') return 'key-symbol';
+  if (key.type === 'num') return 'key-number';
+  if (key.type === 'fn') return 'key-fn';
+  if (key.type === 'mouse') return 'key-mouse';
+  if (key.h && !key.type) return 'key-mod';
+  return 'key-default';
+}
+
+function renderTabs() {
+  const strip = document.getElementById('tabStrip');
+  strip.innerHTML = '';
+  layerNames.forEach(name => {
+    const layer = layers[name];
+    const btn = document.createElement('button');
+    btn.className = `tab-btn ${name === currentLayer ? 'active' : ''}`;
+    btn.textContent = layer.icon;
+    btn.title = `${name} — ${layerDescriptions[name]}`;
+    if (name === currentLayer) btn.style.background = layer.color;
+    btn.onclick = () => switchLayer(name);
+    strip.appendChild(btn);
+  });
+  const label = document.createElement('span');
+  label.className = 'layer-label';
+  label.textContent = `${currentLayer} — ${layerDescriptions[currentLayer]}`;
+  label.style.color = layers[currentLayer].color;
+  strip.appendChild(label);
+}
+
+function renderKeyboard() {
+  const kb = document.getElementById('keyboard');
+  kb.innerHTML = '';
+  const layer = layers[currentLayer];
+
+  layer.keys.forEach((key, i) => {
+    const pos = positions[i];
+    if (!pos) return;
+    const el = document.createElement('div');
+    el.className = `key ${getKeyClass(key)}`;
+    let style = `left:${pos.x}px;top:${pos.y}px;width:${pos.w}px;height:${pos.h}px;`;
+    if (pos.rot) style += `transform:rotate(${pos.rot}deg);transform-origin:center center;`;
+    el.style.cssText = style;
+
+    if (key && (key.t || key.type === 'held')) {
+      if (key.type === 'held') {
+        el.innerHTML = '<div class="tap" style="font-size:16px;color:#e94560">&#9679;</div>';
+      } else {
+        let tapHtml = key.t.split('\n').map(l => `<div>${l}</div>`).join('');
+        el.innerHTML = `<div class="tap">${tapHtml}</div>`;
+        if (key.h) el.innerHTML += `<div class="hold">${key.h}</div>`;
+      }
+    }
+
+    el.addEventListener('mouseenter', (e) => showTooltip(e, key, i));
+    el.addEventListener('mouseleave', hideTooltip);
+    kb.appendChild(el);
+  });
+
+  combosDef.forEach(combo => {
+    const p1 = positions[combo.keys[0]];
+    const p2 = positions[combo.keys[1]];
+    if (!p1 || !p2) return;
+    const midX = (p1.x + p2.x) / 2 + KW / 2 - 14;
+    const midY = Math.min(p1.y, p2.y) - 26;
+    const el = document.createElement('div');
+    el.className = 'combo';
+    el.style.cssText = `left:${midX}px;top:${midY}px;width:28px;height:20px;`;
+    el.textContent = combo.label;
+    kb.appendChild(el);
+  });
+}
+
+function showTooltip(e, key, idx) {
+  if (!key || (!key.t && !key.type)) return;
+  const tt = document.getElementById('tooltip');
+  let html = '';
+  if (key.t) html += `<div class="tt-row"><span class="tt-label">Tap</span><span class="tt-value">${key.t.replace(/\n/g,' ')}</span></div>`;
+  if (key.h) html += `<div class="tt-row"><span class="tt-label">Hold</span><span class="tt-value">${key.h}</span></div>`;
+  if (key.type === 'held') html += `<div class="tt-row"><span class="tt-label">State</span><span class="tt-value" style="color:#e94560">Active layer</span></div>`;
+  if (key.type) html += `<div class="tt-row"><span class="tt-label">Type</span><span class="tt-value">${key.type}</span></div>`;
+  tt.innerHTML = html;
+  tt.classList.add('visible');
+  const rect = e.target.getBoundingClientRect();
+  tt.style.left = (rect.right + 8) + 'px';
+  tt.style.top = rect.top + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('visible');
+}
+
+function switchLayer(name) {
+  currentLayer = name;
+  renderTabs();
+  renderKeyboard();
+}
+
+// Called from Swift via evaluateJavaScript
+function cycleLayer(direction) {
+  const idx = layerNames.indexOf(currentLayer);
+  const next = (idx + direction + layerNames.length) % layerNames.length;
+  switchLayer(layerNames[next]);
+}
+
+// Auto-scale: absolute position the scaler, no flex centering conflicts
+function updateScale() {
+  const area = document.getElementById('kbArea');
+  const scaler = document.getElementById('kbScaler');
+  const kbW = 980;
+  const kbH = 360;
+  const availW = area.clientWidth;
+  const availH = area.clientHeight;
+  const scale = Math.min(availW / kbW, availH / kbH);
+  scaler.style.transform = `scale(${scale})`;
+  scaler.style.left = ((availW - kbW * scale) / 2) + 'px';
+  scaler.style.top = ((availH - kbH * scale) / 2) + 'px';
+}
+
+new ResizeObserver(updateScale).observe(document.getElementById('kbArea'));
+
+document.addEventListener('keydown', (e) => {
+  const num = parseInt(e.key);
+  if (num >= 0 && num < layerNames.length) switchLayer(layerNames[num]);
+  if (e.key === 'ArrowRight' || e.key === ']') cycleLayer(1);
+  if (e.key === 'ArrowLeft' || e.key === '[') cycleLayer(-1);
+});
+
+renderTabs();
+renderKeyboard();
+</script>
+</body>
+</html>
