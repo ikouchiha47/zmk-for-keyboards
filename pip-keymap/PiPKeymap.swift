@@ -7,6 +7,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, NSWi
     var statusItem: NSStatusItem!
     let posKey = "PiPKeymapWindowFrame"
 
+    // Layer signal detection: ZMK macros tap F13-F18 on layer activate, F19 on deactivate
+    // F13=media, F14=sym, F15=num, F16=nav, F17=fun, F18=mouse, F19=base
+    let signalToLayer: [UInt16: String] = [
+        105: "media",  // F13
+        107: "sym",    // F14
+        113: "num",    // F15
+        106: "nav",    // F16
+        64:  "fun",    // F17
+        79:  "mouse",  // F18
+        80:  "base"    // F19
+    ]
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Clear stale saved position from previous broken version
         let defaultFrame = NSRect(x: 200, y: 200, width: 660, height: 300)
@@ -90,10 +102,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, NSWi
         // Global hotkeys (when app is NOT focused)
         NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleGlobalKey(event)
+            self?.handleLayerSignal(event)
         }
         // Local hotkeys (when app IS focused)
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleGlobalKey(event)
+            self?.handleLayerSignal(event)
             return event
         }
     }
@@ -142,6 +156,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, NSWi
         default:
             break
         }
+    }
+
+    func handleLayerSignal(_ event: NSEvent) {
+        guard let layer = signalToLayer[event.keyCode] else { return }
+        webView.evaluateJavaScript("switchLayer('\(layer)')", completionHandler: nil)
     }
 
     func toggleVisibility() {

@@ -16,6 +16,19 @@ Split ergonomic keyboard (42 keys) running [ZMK firmware](https://zmk.dev) on Ni
 | 5 | fun   | Hold DEL  | F1-F12 |
 | 6 | mouse | Hold TAB  | Mouse movement + clicks |
 
+## RGB LEDs
+
+Hold **ESC** (left thumb) to enter the media layer, then:
+
+| Key | Function |
+|-----|----------|
+| Y   | RGB Toggle (on/off) |
+| U   | RGB Effect (cycle animations) |
+| I   | RGB Hue+ |
+| O   | RGB Saturation+ |
+| P   | RGB Color preset (purple) |
+| H   | External Power Toggle |
+
 ## Home Row Mods
 
 Hold the home row key instead of tapping:
